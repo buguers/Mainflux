@@ -15,7 +15,9 @@ start(_StartType, _StartArgs) ->
     ets:new(mfx_cfg, [set, named_table, public]),
 
     % Start the process
-    mfx_auth_sup:start_link().
+    {ok, Sup} = mfx_auth_sup:start_link(),
+    mfx_auth:load(application:get_all_env()),
+    {ok, Sup}.
 
 stop(_State) ->
-    ok.
+    mfx_auth:unload().
