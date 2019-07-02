@@ -106,20 +106,33 @@ on_session_terminated(#{client_id := ClientId}, ReasonCode, _Env) ->
 %% Transform message and return
 on_message_publish(Message = #message{topic = <<"$SYS/", _/binary>>}, _Env) ->
     {ok, Message};
-
 on_message_publish(Message, _Env) ->
     io:format("Publish ~s~n", [emqx_message:format(Message)]),
-    %{ok, Message}.
-    % Topic is list of binaries, ex: [<<"channels">>,<<"1">>,<<"messages">>]
-    Subject = [<<"channel.">>, ChannelId], % binary concatenation
-    RawMessage = #'RawMessage'{
-        'channel' = ChannelId,
-        'publisher' = PublisherId,
-        'protocol' = "mqtt",
-        'payload' = Payload
-    },
 
-    mfx_nats:publish(Subject, message:encode_msg(RawMessage)).
+    #message{
+        from = {_, UsernameFrom},
+        topic = Topic,
+        payload = Payload
+    } = Message,
+
+    [_, ChannelIdBin, _] = Topic,
+    ChannelId = binary_to_integer(ChannelIdBin),
+
+    case can_access(UsernameFrom, ChannelId) of
+        {ok, PublisherId} ->
+            % Topic is list of binaries, ex: [<<"channels">>,<<"1">>,<<"messages">>]
+            Subject = [<<"channel.">>, ChannelId], % binary concatenation
+            RawMessage = #'RawMessage'{
+                channel = ChannelId,
+                publisher = PublisherId,
+                protocol = "mqtt",
+                payload = Payload
+            },
+            mfx_nats:publish(Subject, message:encode_msg(RawMessage)),
+            ok;
+        _ ->
+            error
+    end.
 
 on_message_deliver(#{client_id := ClientId}, Message, _Env) ->
     io:format("Deliver message to client(~s): ~s~n", [ClientId, emqx_message:format(Message)]),
