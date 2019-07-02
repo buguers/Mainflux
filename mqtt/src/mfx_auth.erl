@@ -42,40 +42,40 @@ load(Env) ->
     emqx:hook('message.acked', fun ?MODULE:on_message_acked/3, [Env]),
     emqx:hook('message.dropped', fun ?MODULE:on_message_dropped/3, [Env]).
 
-auth_thing(undefined) ->
+identify(undefined) ->
     {error, undefined};
-auth_thing(Password) ->
-    error_logger:info_msg("auth_thing: ~p", [Password]),
+identify(Password) ->
+    error_logger:info_msg("identify: ~p", [Password]),
     Token = #{value => binary_to_list(Password)},
     mfx_grpc:send(identify, Token).
-can_access(Username, ChannelId) ->
-    error_logger:info_msg("auth_thing: ~p ~p", [Username, ChannelId]),
-    Password = get(Username),
-    case Password of
+
+can_access(ChannelId, ThingId) ->
+    error_logger:info_msg("identify: ~p ~p", [ChannelId, ThingId]),
+    case ThingId of
         undefined ->
             {error, undefined};
         _ ->
-            AccessReq = #{token => binary_to_list(Password), chanID => ChannelId},
+            AccessReq = #{token => binary_to_list(ThingId), chanID => ChannelId},
             mfx_grpc:send(can_access, AccessReq)
     end.
 
 on_client_authenticate(_Credentials = #{client_id := ClientId, username := Username, password := Password}, _State) ->
     io:format("Client authenticate: clientId=~p, username=~p, password=~p~n", [ClientId, Username, Password]),
-    case auth_thing(Password) of
+    case identify(Password) of
         {ok, _} ->
             ok;
         _ ->
             error
     end.
 
-on_client_check_acl(_Credentials = #{client_id := ClientId, username := Username, password := Password}, PubSub, Topic, DefaultACLResult, _Env) ->
+on_client_check_acl(_Credentials = #{client_id := ClientId, username := Username}, PubSub, Topic, DefaultACLResult, _Env) ->
     io:format("Client(~s) ACL, PubSub:~p, Topic:~p, DefaultACLResult:~p~n", [ClientId, PubSub, Topic, DefaultACLResult]),
     [_, ChannelIdBin, _] = Topic,
     ChannelId = binary_to_integer(ChannelIdBin),
     can_access(Username, ChannelId).
 
 on_client_connected(#{client_id := ClientId}, ConnAck, ConnAttrs, _Env) ->
-    io:format("Client(~s) connected, connack: ~w, conn_attrs:~p~n", [ClientId, ConnAck, ConnAttrs]),
+    io:format("Client(~s) connected, connack: ~w, conn_attrs:~p~n", [ClientId, ConnAck, ConnAttrs]).
 
 on_client_disconnected(#{client_id := ClientId}, ReasonCode, _Env) ->
     io:format("Client(~s) disconnected, reason_code: ~w~n", [ClientId, ReasonCode]).
