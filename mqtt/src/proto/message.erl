@@ -30,7 +30,7 @@
 -export([gpb_version_as_string/0, gpb_version_as_list/0]).
 
 -include("message.hrl").
--include("../../gpb/include/gpb.hrl").
+-include("../../include/gpb.hrl").
 
 %% enumerated types
 
