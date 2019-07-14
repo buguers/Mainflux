@@ -4,7 +4,9 @@
 ## SPDX-License-Identifier: Apache-2.0
 
 BUILD_DIR = build
-SERVICES = users things http normalizer ws coap lora influxdb-writer influxdb-reader mongodb-writer mongodb-reader cassandra-writer cassandra-reader postgres-writer postgres-reader cli bootstrap
+SERVICES = users things http normalizer ws coap lora influxdb-writer \
+	influxdb-reader mongodb-writer mongodb-reader cassandra-writer cassandra-reader \
+	postgres-writer postgres-reader cli bootstrap webhook
 DOCKERS = $(addprefix docker_,$(SERVICES))
 DOCKERS_DEV = $(addprefix docker_dev_,$(SERVICES))
 CGO_ENABLED ?= 0
@@ -38,7 +40,8 @@ all: $(SERVICES) mqtt
 
 clean:
 	rm -rf ${BUILD_DIR}
-	rm -rf mqtt/node_modules
+	rm -rf mqtt/aedes/node_modules
+	rm -rf mqtt/verne/_build mqtt/verne/rebar.lock
 
 cleandocker:
 	# Stop all containers (if running)
@@ -96,7 +99,9 @@ ui:
 	$(MAKE) -C ui
 
 mqtt:
-	cd mqtt && npm install
+	cd mqtt/aedes && npm install
+mqtt_verne:
+	cd mqtt/verne && ./rebar3 compile
 
 define docker_push
 	for svc in $(SERVICES); do \
