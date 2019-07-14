@@ -9,7 +9,7 @@ type authRegisterReq struct {
 	username     string `json:"username,omitempty"`
 	password     string `json:"password,omitempty"`
 	mountpoint   string `json:"mountpoint,omitempty"`
-	clientId     string `json:"client_id,omitempty"`
+	clientID     string `json:"client_id,omitempty"`
 	cleanSession bool   `json:"clean_session,omitempty"`
 }
 
@@ -19,7 +19,7 @@ type topics struct {
 }
 
 type authSubscribeReq struct {
-	clientId   string   `json:"client_id,omitempty"`
+	clientID   string   `json:"client_id,omitempty"`
 	mountpoint string   `json:"mountpoint,omitempty"`
 	username   string   `json:"username,omitempty"`
 	topics     []topics `json:"topics,omitempty"`
@@ -27,7 +27,7 @@ type authSubscribeReq struct {
 
 type authPublishReq struct {
 	username   string `json:"username,omitempty"`
-	clientId   string `json:"client_id,omitempty"`
+	clientID   string `json:"client_id,omitempty"`
 	mountpoint string `json:"mountpoint,omitempty"`
 	qos        int    `json:"qos,omitempty"`
 	topic      string `json:"topic,omitempty"`
