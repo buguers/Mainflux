@@ -16,6 +16,7 @@ import (
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/go-zoo/bone"
 	"github.com/mainflux/mainflux"
+	"github.com/mainflux/mainflux/mqtt/webhook"
 	"github.com/mainflux/mainflux/things"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc/codes"
@@ -25,8 +26,9 @@ import (
 const protocol = "http"
 
 var (
-	errMalformedData     = errors.New("malformed request data")
-	errMalformedSubtopic = errors.New("malformed subtopic")
+	errMalformedData          = errors.New("malformed request data")
+	errMalformedSubtopic      = errors.New("malformed subtopic")
+	errUnsupportedContentType = errors.New("unsupported content type")
 )
 
 var (
@@ -35,7 +37,7 @@ var (
 )
 
 // MakeHandler returns a HTTP handler for API endpoints.
-func MakeHandler(svc mainflux.MessagePublisher, tc mainflux.ThingsServiceClient) http.Handler {
+func MakeHandler(svc webhook.Service, tc mainflux.ThingsServiceClient) http.Handler {
 	opts := []kithttp.ServerOption{
 		kithttp.ServerErrorEncoder(encodeError),
 	}
@@ -80,7 +82,7 @@ func decodeAuthRegister(_ context.Context, r *http.Request) (interface{}, error)
 		return nil, err
 	}
 
-	publisher, err := authenticate(req.password)
+	_, err := authenticate(req.password)
 	if err != nil {
 		return nil, err
 	}
@@ -138,18 +140,17 @@ func decodeAuthPublish(_ context.Context, r *http.Request) (interface{}, error) 
 		return nil, err
 	}
 
-	publisher, err := authorize(req.username, chanID)
-	if err != nil {
+	if err := authorize(req.username, chanID); err != nil {
 		return nil, err
 	}
 
 	msg := mainflux.RawMessage{
-		Publisher:   publisher,
+		Publisher:   req.username,
 		Protocol:    "mqtt",
 		ContentType: r.Header.Get("Content-Type"),
 		Channel:     chanID,
 		Subtopic:    subtopic,
-		Payload:     req.payload,
+		Payload:     []byte(req.payload),
 	}
 
 	return msg, nil
@@ -165,13 +166,12 @@ func decodeAuthSubscribe(_ context.Context, r *http.Request) (interface{}, error
 		return nil, err
 	}
 
-	channelParts := channelPartRegExp.FindStringSubmatch(req.topic)
+	channelParts := channelPartRegExp.FindStringSubmatch(req.topics[0].topic)
 	if len(channelParts) < 2 {
 		return nil, errMalformedData
 	}
 	chanID := channelParts[1]
-	_, err := authorize(req.username, chanID)
-	if err != nil {
+	if err := authorize(req.username, chanID); err != nil {
 		return nil, err
 	}
 
@@ -194,20 +194,20 @@ func authenticate(apiKey string) (string, error) {
 	return id.GetValue(), nil
 }
 
-func authorize(thingID, chanID string) (string, error) {
+func authorize(thingID, chanID string) error {
 	if thingID == "" {
-		return "", things.ErrUnauthorizedAccess
+		return things.ErrUnauthorizedAccess
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	id, err := auth.CanAccess(ctx, &mainflux.AccessByIDReq{ThingID: thingID, ChanID: chanID})
+	_, err := auth.CanAccessByID(ctx, &mainflux.AccessByIDReq{ThingID: thingID, ChanID: chanID})
 	if err != nil {
-		return "", err
+		return err
 	}
 
-	return id.GetValue(), nil
+	return nil
 }
 
 func encodeResponse(_ context.Context, w http.ResponseWriter, response interface{}) error {

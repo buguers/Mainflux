@@ -10,23 +10,33 @@ import (
 
 	"github.com/go-kit/kit/metrics"
 	"github.com/mainflux/mainflux"
+	"github.com/mainflux/mainflux/mqtt/webhook"
 )
 
-var _ mainflux.MessagePublisher = (*metricsMiddleware)(nil)
+var _ webhook.Service = (*metricsMiddleware)(nil)
 
 type metricsMiddleware struct {
 	counter metrics.Counter
 	latency metrics.Histogram
-	svc     mainflux.MessagePublisher
+	svc     webhook.Service
 }
 
 // MetricsMiddleware instruments webhook by tracking request count and latency.
-func MetricsMiddleware(svc mainflux.MessagePublisher, counter metrics.Counter, latency metrics.Histogram) mainflux.MessagePublisher {
+func MetricsMiddleware(svc webhook.Service, counter metrics.Counter, latency metrics.Histogram) webhook.Service {
 	return &metricsMiddleware{
 		counter: counter,
 		latency: latency,
 		svc:     svc,
 	}
+}
+
+func (mm *metricsMiddleware) Register(thingID string) error {
+	defer func(begin time.Time) {
+		mm.counter.With("method", "register").Add(1)
+		mm.latency.With("method", "register").Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	return mm.svc.Register(thingID)
 }
 
 func (mm *metricsMiddleware) Publish(msg mainflux.RawMessage) error {
@@ -36,4 +46,13 @@ func (mm *metricsMiddleware) Publish(msg mainflux.RawMessage) error {
 	}(time.Now())
 
 	return mm.svc.Publish(msg)
+}
+
+func (mm *metricsMiddleware) Subscribe(topic string) error {
+	defer func(begin time.Time) {
+		mm.counter.With("method", "subscribe").Add(1)
+		mm.latency.With("method", "subscribe").Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	return mm.svc.Subscribe(topic)
 }

@@ -10,14 +10,6 @@ import (
 )
 
 var (
-	// ErrConflict indicates usage of the existing email during account
-	// registration.
-	ErrConflict = errors.New("email already taken")
-
-	// ErrMalformedEntity indicates malformed entity specification (e.g.
-	// invalid username or password).
-	ErrMalformedEntity = errors.New("malformed entity specification")
-
 	// ErrUnauthorizedAccess indicates missing or invalid credentials provided
 	// when accessing a protected resource.
 	ErrUnauthorizedAccess = errors.New("missing or invalid credentials provided")
@@ -36,7 +28,7 @@ type Service interface {
 	Publish(msg mainflux.RawMessage) error
 
 	// Subscribe implements onSubscribe hook
-	Subscribe() error
+	Subscribe(topic string) error
 }
 
 var _ Service = (*webhookService)(nil)
@@ -58,6 +50,6 @@ func (svc *webhookService) Publish(msg mainflux.RawMessage) error {
 	return svc.pub.Publish(msg)
 }
 
-func (svc *webhookService) Subscribe() error {
+func (svc *webhookService) Subscribe(topic string) error {
 	return nil
 }

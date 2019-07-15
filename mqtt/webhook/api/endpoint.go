@@ -19,7 +19,7 @@ func authRegisterEndpoint(svc webhook.Service) endpoint.Endpoint {
 	}
 }
 
-func authPublishEndpoint(svc mainflux.MessagePublisher) endpoint.Endpoint {
+func authPublishEndpoint(svc webhook.Service) endpoint.Endpoint {
 	return func(_ context.Context, request interface{}) (interface{}, error) {
 		msg := request.(mainflux.RawMessage)
 		err := svc.Publish(msg)
@@ -30,7 +30,7 @@ func authPublishEndpoint(svc mainflux.MessagePublisher) endpoint.Endpoint {
 func authSubscribeEndpoint(svc webhook.Service) endpoint.Endpoint {
 	return func(_ context.Context, request interface{}) (interface{}, error) {
 		req := request.(authSubscribeReq)
-		err := svc.Subscribe()
+		err := svc.Subscribe(req.topics[0].topic)
 		return nil, err
 	}
 }

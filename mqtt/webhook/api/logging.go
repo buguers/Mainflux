@@ -11,18 +11,32 @@ import (
 
 	"github.com/mainflux/mainflux"
 	log "github.com/mainflux/mainflux/logger"
+	"github.com/mainflux/mainflux/mqtt/webhook"
 )
 
-var _ mainflux.MessagePublisher = (*loggingMiddleware)(nil)
+var _ webhook.Service = (*loggingMiddleware)(nil)
 
 type loggingMiddleware struct {
 	logger log.Logger
-	svc    mainflux.MessagePublisher
+	svc    webhook.Service
 }
 
 // LoggingMiddleware adds logging facilities to the adapter.
-func LoggingMiddleware(svc mainflux.MessagePublisher, logger log.Logger) mainflux.MessagePublisher {
+func LoggingMiddleware(svc webhook.Service, logger log.Logger) webhook.Service {
 	return &loggingMiddleware{logger, svc}
+}
+
+func (lm *loggingMiddleware) Register(thingID string) (err error) {
+	defer func(begin time.Time) {
+		message := fmt.Sprintf("Method register thing %s took %s to complete", thingID, time.Since(begin))
+		if err != nil {
+			lm.logger.Warn(fmt.Sprintf("%s with error: %s.", message, err))
+			return
+		}
+		lm.logger.Info(fmt.Sprintf("%s without errors.", message))
+	}(time.Now())
+
+	return lm.svc.Register(thingID)
 }
 
 func (lm *loggingMiddleware) Publish(msg mainflux.RawMessage) (err error) {
@@ -40,4 +54,17 @@ func (lm *loggingMiddleware) Publish(msg mainflux.RawMessage) (err error) {
 	}(time.Now())
 
 	return lm.svc.Publish(msg)
+}
+
+func (lm *loggingMiddleware) Subscribe(topic string) (err error) {
+	defer func(begin time.Time) {
+		message := fmt.Sprintf("Method subscribe thing %s took %s to complete", topic, time.Since(begin))
+		if err != nil {
+			lm.logger.Warn(fmt.Sprintf("%s with error: %s.", message, err))
+			return
+		}
+		lm.logger.Info(fmt.Sprintf("%s without errors.", message))
+	}(time.Now())
+
+	return lm.svc.Subscribe(topic)
 }
