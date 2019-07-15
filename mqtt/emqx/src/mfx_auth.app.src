@@ -1,0 +1,14 @@
+{application, mfx_auth,
+ [
+  {description, "Mainflux auth plugin for emqx"},
+  {vsn, "0.0.1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib,
+                  teacup,
+                  gpb,
+                  grpc_client
+                 ]},
+  {mod, { mfx_auth_app, []}}
+ ]}.
