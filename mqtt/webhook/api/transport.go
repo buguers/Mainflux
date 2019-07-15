@@ -194,15 +194,15 @@ func authenticate(apiKey string) (string, error) {
 	return id.GetValue(), nil
 }
 
-func authorize(apiKey, chanID string) (string, error) {
-	if apiKey == "" {
+func authorize(thingID, chanID string) (string, error) {
+	if thingID == "" {
 		return "", things.ErrUnauthorizedAccess
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	id, err := auth.CanAccess(ctx, &mainflux.AccessReq{Token: apiKey, ChanID: chanID})
+	id, err := auth.CanAccess(ctx, &mainflux.AccessByIDReq{ThingID: thingID, ChanID: chanID})
 	if err != nil {
 		return "", err
 	}
