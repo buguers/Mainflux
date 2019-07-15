@@ -40,37 +40,29 @@ identify(Password) ->
                     {[{<<"id">>, Id}]} = jsone:decode(RespBody, [{object_format, tuple}]),
                     {ok, Id};
                 _ ->
-                    error
+                    {error, wrong_response}
             end;
+        403 ->
+            {error, invalid_credentials};
         _ ->
-            error
+            {error, generic_error}
     end.
 
 access(UserName, ChannelId) ->
     error_logger:info_msg("access: ~p ~p", [UserName, ChannelId]),
-    Password = get(UserName),
-    case Password of
-        undefined ->
-            {error, undefined};
+    [{_, AuthUrl}] = ets:lookup(mfx_cfg, auth_url),
+    URL = [AuthUrl, <<"/channels/">>, ChannelId, <<"/access-by-id">>],
+    error_logger:info_msg("URL: ~p", [URL]),
+    ReqBody = jsone:encode(#{<<"token">> => UserName}),
+    ReqHeaders = [{<<"Content-Type">>, <<"application/json">>}],
+    {ok, Status, _, _} = hackney:request(post, URL, ReqHeaders, ReqBody),
+    case Status of
+        200 ->
+            ok;
+        403 ->
+            {error, invalid_credentials};
         _ ->
-            [{_, AuthUrl}] = ets:lookup(mfx_cfg, auth_url),
-            URL = [AuthUrl, <<"/channels/">>, ChannelId, <<"/access">>],
-            error_logger:info_msg("URL: ~p", [URL]),
-            ReqBody = jsone:encode(#{<<"token">> => Password}),
-            ReqHeaders = [{<<"Content-Type">>, <<"application/json">>}],
-            {ok, Status, _, Ref} = hackney:request(post, URL, ReqHeaders, ReqBody),
-            case Status of
-                200 ->
-                    case hackney:body(Ref) of
-                        {ok, RespBody} ->
-                            {[{<<"id">>, Id}]} = jsone:decode(RespBody, [{object_format, tuple}]),
-                            {ok, Id};
-                        _ ->
-                            error
-                    end;
-                _ ->
-                    error
-            end
+            {error, generic_error}
     end.
 
 auth_on_register({_IpAddr, _Port} = Peer, {_MountPoint, _ClientId} = SubscriberId, UserName, Password, CleanSession) ->
@@ -89,11 +81,9 @@ auth_on_register({_IpAddr, _Port} = Peer, {_MountPoint, _ClientId} = SubscriberI
 
     case identify(Password) of
         {ok, _} ->
-            % Save Username:Password mapping in process dictionary
-            put(UserName, Password),
             ok;
         _ ->
-            error
+            {error, invalid_credentials}
     end.
 
 auth_on_publish(UserName, {_MountPoint, _ClientId} = SubscriberId, QoS, Topic, Payload, IsRetain) ->
@@ -115,10 +105,10 @@ auth_on_publish(UserName, {_MountPoint, _ClientId} = SubscriberId, QoS, Topic, P
     % Topic is list of binaries, ex: [<<"channels">>, <<"1">>, <<"messages">>, <<"subtopic_1">>, ...]
     [<<"channels">>, ChannelId, Suffix] = Topic,
     case access(UserName, ChannelId) of
-        {ok, PublisherId} ->
+        ok ->
             RawMessage = #'RawMessage'{
                 'channel' = ChannelId,
-                'publisher' = PublisherId,
+                'publisher' = UserName,
                 'protocol' = "mqtt",
                 'payload' = Payload
             },
@@ -150,9 +140,4 @@ auth_on_subscribe(UserName, ClientId, [{_Topic, _QoS}|_] = Topics) ->
     %% 3. return {error, whatever} -> auth chain is stopped, and no SUBACK is sent
 
     [_, ChannelId, _] = _Topic,
-    case access(UserName, ChannelId) of
-        {ok, _} ->
-            ok;
-        _ ->
-            {error, "SUB not authorized"}
-    end.
+    access(UserName, ChannelId).
