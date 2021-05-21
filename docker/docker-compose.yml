@@ -56,7 +56,7 @@ services:
       - mainflux-base-net
 
   auth-db:
-    image: postgres:13.2-alpine
+    image: postgres:13.3-alpine
     container_name: mainflux-auth-db
     restart: on-failure
     environment:
@@ -94,7 +94,7 @@ services:
       - mainflux-base-net
 
   users-db:
-    image: postgres:13.2-alpine
+    image: postgres:13.3-alpine
     container_name: mainflux-users-db
     restart: on-failure
     environment:
@@ -142,7 +142,7 @@ services:
       - mainflux-base-net
 
   things-db:
-    image: postgres:13.2-alpine
+    image: postgres:13.3-alpine
     container_name: mainflux-things-db
     restart: on-failure
     environment:
