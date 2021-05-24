@@ -23,7 +23,7 @@ var _ session.Handler = (*handler)(nil)
 const protocol = "mqtt"
 
 var (
-	channelRegExp         = regexp.MustCompile(`^\/?channels\/([\w\-]+)\/messages(\/[^?]*)?(\?.*)?$`)
+	channelRegExp         = regexp.MustCompile(`^\/?ch\/([\w\-]+)\/msg(\/[^?]*)?(\?.*)?$`)
 	errMalformedTopic     = errors.New("malformed topic")
 	errMalformedData      = errors.New("malformed request data")
 	errMalformedSubtopic  = errors.New("malformed subtopic")
@@ -126,7 +126,7 @@ func (h *handler) Publish(c *session.Client, topic *string, payload *[]byte) {
 	}
 	h.logger.Info("Publish - client ID " + c.ID + " to the topic: " + *topic)
 	// Topics are in the format:
-	// channels/<channel_id>/messages/<subtopic>/.../ct/<content_type>
+	// ch/<channel_id>/msg/<subtopic>/.../ct/<content_type>
 
 	channelParts := channelRegExp.FindStringSubmatch(*topic)
 	if len(channelParts) < 1 {
@@ -191,7 +191,7 @@ func (h *handler) Disconnect(c *session.Client) {
 
 func (h *handler) authAccess(username string, topic string) error {
 	// Topics are in the format:
-	// channels/<channel_id>/messages/<subtopic>/.../ct/<content_type>
+	// ch/<channel_id>/msg/<subtopic>/.../ct/<content_type>
 	if !channelRegExp.Match([]byte(topic)) {
 		h.logger.Info("Malformed topic: " + topic)
 		return errMalformedTopic
